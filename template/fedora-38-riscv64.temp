@@ -1,0 +1,58 @@
+config_opts['target_arch'] = 'riscv64'
+config_opts['legal_host_arches'] = ('riscv64',)
+config_opts['qemu_user_static_mapping'] = {
+    'riscv64': 'riscv64',
+}
+config_opts['scm_opts']['git_get'] = 'git clone SCM_BRN https://src.fedoraproject.org/rpms/SCM_PKG.git SCM_PKG'
+config_opts['root'] = 'fedora-{{ releasever }}-{{ target_arch }}-@@UUID@@'
+config_opts['rootdir'] = '/tmp/mock/fedora-{{ releasever }}-{{ target_arch }}-@@UUID@@/root'
+config_opts['mirrored'] = config_opts['target_arch'] != 'i686'
+config_opts['chroot_setup_cmd'] = 'install @{% if mirrored %}buildsys-{% endif %}build'
+config_opts['dist'] = 'fc{{ releasever }}'
+config_opts['extra_chroot_dirs'] = [ '/run/lock', ]
+config_opts['releasever'] = '38'
+config_opts['package_manager'] = 'dnf'
+config_opts['dnf.conf'] = """
+
+[main]
+keepcache=1
+debuglevel=2
+reposdir=/dev/null
+logfile=/var/log/yum.log
+retries=20
+obsoletes=1
+gpgcheck=0
+assumeyes=1
+syslog_ident=mock
+syslog_device=
+install_weak_deps=0
+metadata_expire=0
+best=1
+module_platform_id=platform:f{{ releasever }}
+protected_packages=
+user_agent={{ user_agent }}
+
+{%- macro rawhide_gpg_keys() -%}
+file:///usr/share/distribution-gpg-keys/fedora/RPM-GPG-KEY-fedora-$releasever-primary
+{%- for version in [releasever|int, releasever|int - 1]
+%} file:///usr/share/distribution-gpg-keys/fedora/RPM-GPG-KEY-fedora-{{ version }}-primary
+{%- endfor %}
+{%- endmacro %}
+
+# repos
+
+[fedora-38-openkoji-riscv-koji-repo]
+name=Fedora 38 RISC-V koji build repo on OpenKoji
+baseurl=http://openkoji.iscas.ac.cn/kojifiles/repos/f38-build-side-42-init-devel/latest/$basearch/
+cost=2000
+enabled=1
+skip_if_unavailable=True
+
+[local-repo]
+name=Localhost Temp Repo
+baseurl=file://@@LOCAL_REPO@@
+cost=2000
+enabled=1
+skip_if_unavailable=True
+
+"""
