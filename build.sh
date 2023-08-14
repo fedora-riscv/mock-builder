@@ -216,12 +216,12 @@ build_single_package() {
     mkdir -p "$workdir"/result/success/"${package}"
     cp -rv "$resultdir"/* "$workdir"/result/success/"${package}"
     cp -v "$resultdir"/*.rpm "$workdir"/rpm
+    createrepo --update -v $workdir/rpm
     if [ -n "$script" ]; then
       echo "[+] Running script: $script"
       cd "$workdir"/result/success
       $script "${script_param//@@PACKAGE@@/$package}"
     fi
-    createrepo --update -v $workdir/rpm
   else
     echo "[-] Build ${package} failed."
     mkdir -p "$workdir"/result/failed/"${package}"
