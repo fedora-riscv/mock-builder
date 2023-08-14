@@ -4,8 +4,8 @@ config_opts['qemu_user_static_mapping'] = {
     'riscv64': 'riscv64',
 }
 config_opts['scm_opts']['git_get'] = 'git clone SCM_BRN https://src.fedoraproject.org/rpms/SCM_PKG.git SCM_PKG'
-config_opts['root'] = 'fedora-{{ releasever }}-{{ target_arch }}-@@UUID@@'
-config_opts['rootdir'] = '/tmp/mock/fedora-{{ releasever }}-{{ target_arch }}-@@UUID@@/root'
+config_opts['root'] = '/tmp/mock/fedora-{{ releasever }}-{{ target_arch }}-@@ID@@'
+config_opts['rootdir'] = '/tmp/mock/fedora-{{ releasever }}-{{ target_arch }}-@@ID@@/root'
 config_opts['mirrored'] = config_opts['target_arch'] != 'i686'
 config_opts['chroot_setup_cmd'] = 'install @{% if mirrored %}buildsys-{% endif %}build'
 config_opts['dist'] = 'fc{{ releasever }}'

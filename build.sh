@@ -1,7 +1,7 @@
 #!/bin/bash
 
 check_requirements() {
-  local cmds=(curl mock git sed fedpkg uuidgen)
+  local cmds=(curl mock git sed fedpkg)
   local missing_commands=()
   for cmd in "${cmds[@]}"; do
     if ! command -v "$cmd" &>/dev/null; then
@@ -145,8 +145,8 @@ prepare_env() {
   exec 5<>$workdir/npipe
 
   for ((i = 1; i <= $thread; i++)); do
-    echo >&5
-  done
+    echo $i
+  done >&5
 
   if [ -n "$package" ]; then
     packages="$package"
@@ -163,20 +163,20 @@ clean_mock_settings() {
   mock -r $mock_config --umount
   rm -rf $mock_config
   rm -rf $resultdir
-  echo "[?] sudo rm -rf /tmp/mock/*-$uuid/"
+  echo "[?] sudo rm -rf /tmp/mock/*-$mock_id/"
 }
 
 init_mock_settings() {
   # Init mock settings
-  uuid=$(uuidgen | cut -c1-8)
+  mock_id=$1
   # Create mock config
-  mock_config="$workdir"/config/mock-"$uuid".cfg
+  mock_config="$workdir"/config/mock-"$mock_id".cfg
   cp "$mock_template" "$mock_config"
 
-  sed -i -e "s/@@UUID@@/$uuid/g" "$mock_config"
+  sed -i -e "s/@@ID@@/$mock_id/g" "$mock_config"
   sed -i -e "s#@@LOCAL_REPO@@#$workdir/rpm#g" "$mock_config"
 
-  resultdir="$workdir"/result/temp/$uuid
+  resultdir="$workdir"/result/temp/$mock_id
 }
 
 build_single_package() {
@@ -248,7 +248,7 @@ sleep 5
 for package in $packages; do
   read -u5 
   {
-    init_mock_settings
+    init_mock_settings $REPLY
     (
       set -e
       build_single_package "$package"
@@ -256,7 +256,7 @@ for package in $packages; do
 
     clean_mock_settings
 
-    echo >&5
+    echo $REPLY >&5
   } & 2>&1
 done
 
