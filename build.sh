@@ -182,6 +182,7 @@ init_mock_settings() {
 build_single_package() {
   package="$1"
   now=$(date)
+  ret_code=0
 
   echo "[+] Building package: ${package} at ${now}"
   cd "$workdir"/packages
