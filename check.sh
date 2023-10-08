@@ -35,9 +35,6 @@ Options:
   --workdir (-w) <workdir>
       Use specified workdir.
 
-  --package (-p) <package>
-      Build specified package.
-
   --packages-file (-P) <packages_file>
       Build packages listed in specified file.
 
@@ -81,10 +78,6 @@ while (("$#")); do
     workdir="$2"
     shift 2
     ;;
-  --package | -p)
-    package="$2"
-    shift 2
-    ;;
   --packages-file | -P)
     packages_file="$2"
     shift 2
@@ -110,7 +103,7 @@ while (("$#")); do
     profile="$2"
     shift 2
     ;;
-  --tag | -t)
+  --tag)
     tag="$2"
     shift 2
     ;;
@@ -126,11 +119,9 @@ while (("$#")); do
 done
 
 check_requirements || exit 1
-[ -z "$branch" ] && echo "[-] Please specify branch." && exit 1
 [ -z "$mock_template" ] && echo "[-] Please specify mock config file." && exit 1
 [ -z "$workdir" ] && workdir="$HOME/mock-workdir"
-[ -z "$package" ] && [ -z "$packages_file" ] && echo "[-] Please specify package or packages file." && exit 1
-[ -n "$package" ] && [ -n "$packages_file" ] && echo "[-] Please specify package or packages file, not both." && exit 1
+[ -z "$packages_file" ] && echo "[-] Please specify package or packages file." && exit 1
 [ -n "$packages_file" ] && [ ! -f "$packages_file" ] && echo "[-] Packages file $packages_file not found." && exit 1
 [ -z "$clean_after" ] && clean_after=75
 [ -z "$profile" ] && profile=koji
@@ -201,13 +192,14 @@ init_mock_settings() {
 check_single_package() {
   package="$1"
   now=$(date)
+  mode='/RPMs:/ {f=1; next} f {split($0, a, "/"); if (a[length(a)] !~ /\.src\.rpm$/) {sub(/\.rpm$/, "", a[length(a)]); print a[length(a)]}}'
 
   echo "[+] Checking package: ${package} at ${now}"
   build=$(koji -p $profile latest-build $tag $package | awk 'NR==3 {print $1}')
 	if [ -z "$build" ]; then
 		echo "the package $package didn't build?"
 		echo "not found: $package" >> non_build.txt
-		continue
+		return
 	fi
 
 	rpms=$(koji -p openkoji buildinfo $build | awk "$mode" | tr '\n' ' ')
@@ -215,7 +207,7 @@ check_single_package() {
 	if [ $? -ne 0 ]; then
 		echo "the package $package cannot be installed!"
 		echo "$package" >> failed.txt
-		continue
+		return
 	fi
 	echo "package $package no problem, next."
 }
@@ -237,7 +229,7 @@ echo "========================================"
 koji -p $profile hello || exit 1
 koji -p $profile list-tags | grep $tag || exit 1
 
-echo "[+] Start building packages after 5 seconds."
+echo "[+] Start testing packages after 5 seconds."
 sleep 5
 
 for package in $packages; do
@@ -245,7 +237,7 @@ for package in $packages; do
   {
     init_mock_settings $REPLY
     (
-      set -e
+      # set -e
       check_single_package "$package"
     )
 
