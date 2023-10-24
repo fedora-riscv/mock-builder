@@ -59,6 +59,9 @@ Options:
   --tag (-t) <tag>
       Use specified koji tag.
       For example: --tag f38-build
+
+  --rpms
+      Use rpms instead of srpms.
   "
 }
 
@@ -106,6 +109,10 @@ while (("$#")); do
   --tag)
     tag="$2"
     shift 2
+    ;;
+  --rpms)
+    use_rpms=1
+    shift
     ;;
   -* | --*=) # unsupported flags
     echo "Error: Unsupported flag $1" >&2
@@ -195,14 +202,20 @@ check_single_package() {
   mode='/RPMs:/ {f=1; next} f {split($0, a, "/"); if (a[length(a)] !~ /\.src\.rpm$/) {sub(/\.rpm$/, "", a[length(a)]); print a[length(a)]}}'
 
   echo "[+] Checking package: ${package} at ${now}"
-  build=$(koji -p $profile latest-build $tag $package | awk 'NR==3 {print $1}')
-	if [ -z "$build" ]; then
-		echo "the package $package didn't build?"
-		echo "not found: $package" >> non_build.txt
-		return
-	fi
 
-	rpms=$(koji -p openkoji buildinfo $build | awk "$mode" | tr '\n' ' ')
+  if [ $use_rpms -ne 1 ]; then
+    build=$(koji -p $profile latest-build $tag $package | awk 'NR==3 {print $1}')
+    if [ -z "$build" ]; then
+      echo "the package $package didn't build?"
+      echo "not found: $package" >> non_build.txt
+      return
+    fi
+
+    rpms=$(koji -p openkoji buildinfo $build | awk "$mode" | tr '\n' ' ')
+  else
+    rpms=$package
+  fi
+  
 	result=$(mock -r $mock_config --no-bootstrap-chroot --install $rpms)
 	if [ $? -ne 0 ]; then
 		echo "the package $package cannot be installed!"
