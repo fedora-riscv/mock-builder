@@ -99,6 +99,10 @@ while (("$#")); do
     thread="$2"
     shift 2
     ;;
+  --clean-after | -c)
+    clean_after="$2"
+    shift 2
+    ;;
   --timeout | -T)
     timeout="$2"
     shift 2
@@ -123,6 +127,7 @@ check_requirements || exit 1
 [ -z "$mock_template" ] && echo "[-] Please specify mock config file." && exit 1
 [ -z "$workdir" ] && workdir="$HOME/mock-workdir"
 [ -z "$package" ] && [ -z "$packages_file" ] && echo "[-] Please specify package or packages file." && exit 1
+[ -z "$clean_after" ] && clean_after=75
 [ -n "$package" ] && [ -n "$packages_file" ] && echo "[-] Please specify package or packages file, not both." && exit 1
 [ -n "$packages_file" ] && [ ! -f "$packages_file" ] && echo "[-] Packages file $packages_file not found." && exit 1
 [ -z "$thread" ] && thread=1
@@ -176,6 +181,15 @@ init_mock_settings() {
   sed -i -e "s/@@ID@@/$mock_id/g" "$mock_config"
   sed -i -e "s#@@LOCAL_REPO@@#$workdir/rpm#g" "$mock_config"
 
+  # check build dir
+  used_inode=`df -i /tmp/mock | awk '{sub(/%/,"",$5); if(NR==2) print $5}'`
+  used_part=`df -h /tmp/mock | awk '{sub(/%/,"",$5); if(NR==2) print $5}'`
+
+  # check if inode or part greater than $clean-after
+  if [ $used_inode -gt $clean_after ] || [ $used_part -gt $clean_after ]; then
+    mock -r $mock_config --clean
+  fi
+
   resultdir="$workdir"/result/temp/$mock_id
 }
 
@@ -192,9 +206,14 @@ build_single_package() {
   git checkout "$branch"
   fedpkg sources >> "$workdir"/log/build/"${package}".log 2>&1
 
-  # Change release number
-  sed -i -e 's@%{?dist}@.rvmock0%{?dist}@g' "${package}".spec ||
-    sed -i -e 's@%autorelease@%autorelease -e rvmock0@g' "${package}".spec
+  if [ -n "$nocheck" ]; then
+    sed -i -e 's@%{?dist}@.rvmock0_nc%{?dist}@g' "${package}".spec ||
+      sed -i -e 's@%autorelease@%autorelease -e rvmock0_nc@g' "${package}".spec
+  else 
+    # Change release number
+    sed -i -e 's@%{?dist}@.rvmock0%{?dist}@g' "${package}".spec ||
+      sed -i -e 's@%autorelease@%autorelease -e rvmock0@g' "${package}".spec
+  fi
 
   rm *.src.rpm || true
   fedpkg srpm
